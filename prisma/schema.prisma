@@ -1,0 +1,217 @@
+// EduManager V2 — Prisma schema
+// See .claude/skills/database-design/SKILL.md for conventions and rationale,
+// and .claude/skills/edumanager-ops/SKILL.md for the business rules behind each model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Enums ----------
+
+enum UserRole {
+  ADMIN
+  CASHIER
+  TEACHER
+}
+
+enum StudentStatus {
+  STUDYING // Đang học
+  NO_CLASS // Chưa có lớp
+  GRADUATED // Đã tốt nghiệp
+}
+
+enum ClassStatus {
+  OPEN // Đang Mở
+  CLOSED // Đã Khóa
+}
+
+enum BatchStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+}
+
+enum ReceiptType {
+  PRINTED // In máy
+  MANUAL // Nhập tay
+}
+
+// ---------- Core models ----------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  fullName  String
+  role      UserRole
+  teacherId String?  @unique
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  receipts Receipt[]
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  label     String   @unique // e.g. "2025-2026"
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes Class[]
+}
+
+model Subject {
+  id                 String   @id @default(cuid())
+  name               String   @unique // Toán, Lý, Hóa, Văn, Anh Văn, GVNN...
+  defaultFeePerBatch Int // VNĐ, whole đồng (350000 default, Văn = 300000)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  classes  Class[]
+  teachers Teacher[]
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  code      String   @unique // GV001, GV002...
+  fullName  String
+  phone     String?
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user             User?
+  classesAsPrimary Class[]
+  batches          Batch[]
+
+  @@index([subjectId])
+}
+
+model Student {
+  id        String        @id @default(cuid())
+  code      String        @unique // HS0001, HS0002... auto-generated
+  fullName  String
+  phone     String?
+  grade     Int // 1-12
+  status    StudentStatus @default(NO_CLASS)
+  note      String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  enrollments Enrollment[]
+  receipts    Receipt[]
+}
+
+model Class {
+  id               String       @id @default(cuid())
+  name             String // e.g. "Toán 6A"
+  grade            Int
+  subjectId        String
+  subject          Subject      @relation(fields: [subjectId], references: [id])
+  academicYearId   String
+  academicYear     AcademicYear @relation(fields: [academicYearId], references: [id])
+  primaryTeacherId String
+  primaryTeacher   Teacher      @relation(fields: [primaryTeacherId], references: [id])
+  feePerBatch      Int // VNĐ, whole đồng
+  status           ClassStatus  @default(OPEN)
+  // Year-end promotion lineage: the class this one was auto-cloned from, if any.
+  promotedFromId   String?      @unique
+  promotedFrom     Class?       @relation("ClassPromotion", fields: [promotedFromId], references: [id])
+  promotedTo       Class?       @relation("ClassPromotion")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  batches          Batch[]
+  enrollments      Enrollment[]
+  receiptLineItems ReceiptLineItem[]
+
+  @@index([academicYearId])
+  @@index([subjectId])
+  @@index([primaryTeacherId])
+}
+
+model Batch {
+  id          String      @id @default(cuid())
+  classId     String
+  class       Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  batchNumber Int // 1-12
+  name        String // e.g. "Đợt 1"
+  feePerBatch Int // VNĐ, whole đồng — can override class.feePerBatch
+  teacherId   String // can differ from class.primaryTeacherId
+  teacher     Teacher     @relation(fields: [teacherId], references: [id])
+  status      BatchStatus @default(UPCOMING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  enrollmentsStarting Enrollment[]      @relation("EnrollmentStartBatch")
+  enrollmentsEnding   Enrollment[]      @relation("EnrollmentEndBatch")
+  receiptLineItems    ReceiptLineItem[]
+
+  @@unique([classId, batchNumber])
+  @@index([teacherId])
+}
+
+// A student can have multiple Enrollment rows against the SAME class for
+// non-contiguous batch ranges (see edumanager-ops §4) — do NOT add a unique
+// constraint on (studentId, classId).
+model Enrollment {
+  id               String   @id @default(cuid())
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id])
+  classId          String
+  class            Class    @relation(fields: [classId], references: [id])
+  startBatchNumber Int
+  startBatchId     String
+  startBatch       Batch    @relation("EnrollmentStartBatch", fields: [startBatchId], references: [id])
+  endBatchNumber   Int?
+  endBatchId       String?
+  endBatch         Batch?   @relation("EnrollmentEndBatch", fields: [endBatchId], references: [id])
+  enrolledAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([classId])
+}
+
+model Receipt {
+  id                String      @id @default(cuid())
+  receiptCode       String?     @unique // auto-generated for PRINTED
+  manualReceiptCode String? // entered by cashier for MANUAL
+  receiptType       ReceiptType
+  studentId         String
+  student           Student     @relation(fields: [studentId], references: [id])
+  issuedAt          DateTime    @default(now())
+  createdByUserId   String
+  createdByUser     User        @relation(fields: [createdByUserId], references: [id])
+  totalAmount       Int // VNĐ, whole đồng — sum of line items
+  createdAt         DateTime    @default(now())
+
+  lineItems ReceiptLineItem[]
+
+  @@index([studentId])
+  @@index([issuedAt])
+}
+
+model ReceiptLineItem {
+  id        String  @id @default(cuid())
+  receiptId String
+  receipt   Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id])
+  batchId   String
+  batch     Batch   @relation(fields: [batchId], references: [id])
+  amount    Int // VNĐ, whole đồng
+
+  @@index([receiptId])
+  @@index([batchId])
+  @@index([classId])
+}
