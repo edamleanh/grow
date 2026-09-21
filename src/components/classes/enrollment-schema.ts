@@ -19,3 +19,12 @@ export const transferSchema = z.object({
   startBatchNumber: z.coerce.number().int().min(1).max(12),
 });
 export type TransferInput = z.infer<typeof transferSchema>;
+
+// edumanager-ops §5: withdrawing (nghỉ học) just closes the enrollment at
+// endBatchNumber, like the old side of a transfer, but opens no new
+// enrollment anywhere — debt on batches up to and including it stays put.
+export const withdrawSchema = z.object({
+  enrollmentId: z.string().min(1),
+  endBatchNumber: z.coerce.number().int().min(1).max(12),
+});
+export type WithdrawInput = z.infer<typeof withdrawSchema>;

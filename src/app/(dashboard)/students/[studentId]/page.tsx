@@ -25,6 +25,7 @@ export default async function StudentDetailPage({
             class: {
               select: {
                 name: true,
+                subjectId: true,
                 feePerBatch: true,
                 batches: { where: { status: "ONGOING" }, select: { batchNumber: true } },
               },
@@ -47,7 +48,7 @@ export default async function StudentDetailPage({
     }),
     prisma.class.findMany({
       where: { status: "OPEN" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, subjectId: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -71,6 +72,7 @@ export default async function StudentDetailPage({
         id: e.id,
         classId: e.classId,
         className: e.class.name,
+        subjectId: e.class.subjectId,
         feePerBatch: e.class.feePerBatch,
         enrolledAt: e.enrolledAt.toISOString(),
         isActive: e.endBatchNumber === null,

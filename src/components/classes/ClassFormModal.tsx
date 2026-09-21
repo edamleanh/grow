@@ -9,6 +9,7 @@ import { dongToThousands, thousandsToDong } from "@/lib/currency";
 
 type Option = { id: string; name: string };
 type Subject = Option & { defaultFeePerBatch: number };
+type TeacherOption = Option & { subjectId: string };
 type ClassRecord = {
   id: string;
   name: string;
@@ -34,7 +35,7 @@ export function ClassFormModal({
   onClose: () => void;
   subjects: Subject[];
   academicYears: Option[];
-  teachers: Option[];
+  teachers: TeacherOption[];
   activeAcademicYearId: string | null;
   klass?: ClassRecord;
 }) {
@@ -45,9 +46,16 @@ export function ClassFormModal({
   const [academicYearId, setAcademicYearId] = useState(
     klass?.academicYearId ?? activeAcademicYearId ?? academicYears[0]?.id ?? "",
   );
+  // Chỉ đề xuất giáo viên có Môn phụ trách khớp với môn của lớp — tránh gán
+  // nhầm giáo viên Văn cho lớp Toán, tương tự lọc khối ở EnrollStudentModal.
+  const teachersForSubject = teachers.filter((t) => t.subjectId === subjectId);
   const [primaryTeacherId, setPrimaryTeacherId] = useState(
-    klass?.primaryTeacherId ?? teachers[0]?.id ?? "",
+    klass?.primaryTeacherId ?? teachersForSubject[0]?.id ?? "",
   );
+  // Nếu lớp đang gán giáo viên khác môn (dữ liệu cũ), vẫn giữ họ trong danh
+  // sách kèm ghi chú thay vì làm mất lựa chọn hiện tại.
+  const currentMismatched = teachers.find((t) => t.id === primaryTeacherId && t.subjectId !== subjectId);
+  const teacherOptions = currentMismatched ? [currentMismatched, ...teachersForSubject] : teachersForSubject;
   const [feeThousands, setFeeThousands] = useState(
     klass ? dongToThousands(klass.feePerBatch) : dongToThousands(subjects[0]?.defaultFeePerBatch ?? 350_000),
   );
@@ -60,6 +68,11 @@ export function ClassFormModal({
     if (!feeTouched) {
       const subject = subjects.find((s) => s.id === newSubjectId);
       if (subject) setFeeThousands(dongToThousands(subject.defaultFeePerBatch));
+    }
+    const stillValid = teachers.some((t) => t.id === primaryTeacherId && t.subjectId === newSubjectId);
+    if (!stillValid) {
+      const firstMatch = teachers.find((t) => t.subjectId === newSubjectId);
+      setPrimaryTeacherId(firstMatch?.id ?? "");
     }
   }
 
@@ -173,10 +186,13 @@ export function ClassFormModal({
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
               value={primaryTeacherId}
               onChange={(e) => setPrimaryTeacherId(e.target.value)}
+              disabled={teacherOptions.length === 0}
             >
-              {teachers.map((teacher) => (
+              {teacherOptions.length === 0 && <option value="">Chưa có giáo viên môn này</option>}
+              {teacherOptions.map((teacher) => (
                 <option key={teacher.id} value={teacher.id}>
                   {teacher.name}
+                  {teacher.id === currentMismatched?.id ? " (khác môn)" : ""}
                 </option>
               ))}
             </select>

@@ -16,6 +16,7 @@ const STATUS_LABELS: Record<BatchStatus, string> = {
 const STATUS_OPTIONS: BatchStatus[] = ["UPCOMING", "ONGOING", "COMPLETED"];
 
 type Option = { id: string; name: string };
+type TeacherOption = Option & { subjectId: string };
 type BatchRecord = {
   id: string;
   batchNumber: number;
@@ -30,14 +31,22 @@ export function BatchFormModal({
   onClose,
   batch,
   teachers,
+  classSubjectId,
 }: {
   open: boolean;
   onClose: () => void;
   batch?: BatchRecord;
-  teachers: Option[];
+  teachers: TeacherOption[];
+  classSubjectId: string;
 }) {
   const [name, setName] = useState(batch?.name ?? "");
-  const [teacherId, setTeacherId] = useState(batch?.teacherId ?? teachers[0]?.id ?? "");
+  const [teacherId, setTeacherId] = useState(batch?.teacherId ?? "");
+  // Chỉ đề xuất giáo viên đúng môn của lớp; nếu đợt đang gán giáo viên khác
+  // môn (dữ liệu cũ), vẫn giữ họ trong danh sách kèm ghi chú thay vì làm mất
+  // lựa chọn hiện tại — tương tự lọc khối ở EnrollStudentModal.
+  const matchingTeachers = teachers.filter((t) => t.subjectId === classSubjectId);
+  const currentMismatched = teachers.find((t) => t.id === teacherId && t.subjectId !== classSubjectId);
+  const teacherOptions = currentMismatched ? [currentMismatched, ...matchingTeachers] : matchingTeachers;
   const [feeThousands, setFeeThousands] = useState(
     batch ? dongToThousands(batch.feePerBatch) : 0,
   );
@@ -100,9 +109,10 @@ export function BatchFormModal({
             defaultValue={batch.teacherId}
             onChange={(e) => setTeacherId(e.target.value)}
           >
-            {teachers.map((teacher) => (
+            {teacherOptions.map((teacher) => (
               <option key={teacher.id} value={teacher.id}>
                 {teacher.name}
+                {teacher.id === currentMismatched?.id ? " (khác môn)" : ""}
               </option>
             ))}
           </select>

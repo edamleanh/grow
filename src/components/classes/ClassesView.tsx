@@ -19,6 +19,7 @@ const STATUS_TONES: Record<ClassStatus, StatusTone> = {
 
 type Option = { id: string; name: string };
 type Subject = Option & { defaultFeePerBatch: number };
+type TeacherOption = Option & { subjectId: string };
 type ClassRow = {
   id: string;
   name: string;
@@ -41,7 +42,7 @@ export function ClassesView({
   classes: ClassRow[];
   subjects: Subject[];
   academicYears: Option[];
-  teachers: Option[];
+  teachers: TeacherOption[];
   activeAcademicYearId: string | null;
   canCreate: boolean;
 }) {

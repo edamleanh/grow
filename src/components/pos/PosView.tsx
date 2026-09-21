@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import { ReceiptPrintModal, type PrintableReceipt } from "@/components/pos/ReceiptPrintModal";
 import { searchStudents, getStudentPaymentOverview, createReceipt, getDebtReport } from "@/app/(dashboard)/pos/actions";
+import { getClassBatchNames } from "@/app/(dashboard)/classes/enrollment-actions";
 import { createReceiptSchema } from "@/components/pos/pos-schema";
 import { formatDong, thousandsToDong, dongToThousands } from "@/lib/currency";
 import type { BatchPaymentTone } from "@/lib/payment-status";
@@ -13,6 +14,7 @@ import type { BatchPaymentTone } from "@/lib/payment-status";
 type StudentOption = { id: string; code: string; fullName: string; phone: string | null };
 type OverviewGroup = Awaited<ReturnType<typeof getStudentPaymentOverview>>[number];
 type ClassOption = { id: string; name: string };
+type BatchOption = { batchNumber: number; name: string };
 
 const TONE_MAP: Record<BatchPaymentTone, { tone: StatusTone; label: string }> = {
   paid: { tone: "green", label: "Đã đóng" },
@@ -293,9 +295,23 @@ function PaymentPanel() {
 function DebtReportPanel({ classes }: { classes: ClassOption[] }) {
   const [classId, setClassId] = useState(classes[0]?.id ?? "");
   const [batchNumber, setBatchNumber] = useState(1);
+  const [batches, setBatches] = useState<BatchOption[]>([]);
   const [rows, setRows] = useState<Awaited<ReturnType<typeof getDebtReport>>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, startLoad] = useTransition();
+
+  // Show the real batch names (edited via modal-batch-form) instead of a
+  // generic "Đợt {n}" — see edumanager-ops/BatchFormModal.
+  useEffect(() => {
+    if (!classId) return;
+    getClassBatchNames(classId).then((rows) => {
+      setBatches(rows);
+      if (rows.length > 0 && !rows.some((b) => b.batchNumber === batchNumber)) {
+        setBatchNumber(rows[0].batchNumber);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId]);
 
   function handleLookup() {
     setError(null);
@@ -333,10 +349,11 @@ function DebtReportPanel({ classes }: { classes: ClassOption[] }) {
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             value={batchNumber}
             onChange={(e) => setBatchNumber(Number(e.target.value))}
+            disabled={batches.length === 0}
           >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                Đợt {n}
+            {batches.map((b) => (
+              <option key={b.batchNumber} value={b.batchNumber}>
+                {b.name}
               </option>
             ))}
           </select>

@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { transferSchema } from "@/components/classes/enrollment-schema";
-import { transferStudent } from "@/app/(dashboard)/classes/enrollment-actions";
+import { transferStudent, getClassBatchNames } from "@/app/(dashboard)/classes/enrollment-actions";
 
 type ClassOption = { id: string; name: string };
-
-const BATCH_NUMBERS = Array.from({ length: 12 }, (_, i) => i + 1);
+type BatchOption = { batchNumber: number; name: string };
 
 export function TransferStudentModal({
   open,
   onClose,
   enrollmentId,
+  currentClassId,
   currentClassName,
   defaultEndBatchNumber,
   targetClasses,
@@ -21,6 +21,7 @@ export function TransferStudentModal({
   open: boolean;
   onClose: () => void;
   enrollmentId: string;
+  currentClassId: string;
   currentClassName: string;
   defaultEndBatchNumber: number;
   targetClasses: ClassOption[];
@@ -28,8 +29,22 @@ export function TransferStudentModal({
   const [endBatchNumber, setEndBatchNumber] = useState(defaultEndBatchNumber);
   const [targetClassId, setTargetClassId] = useState(targetClasses[0]?.id ?? "");
   const [startBatchNumber, setStartBatchNumber] = useState(defaultEndBatchNumber + 1 > 12 ? 1 : defaultEndBatchNumber + 1);
+  const [currentClassBatches, setCurrentClassBatches] = useState<BatchOption[]>([]);
+  const [targetClassBatches, setTargetClassBatches] = useState<BatchOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Show the real batch names (edited via modal-batch-form) instead of a
+  // generic "Đợt {n}" — see edumanager-ops/BatchFormModal.
+  useEffect(() => {
+    if (!open || !currentClassId) return;
+    getClassBatchNames(currentClassId).then(setCurrentClassBatches);
+  }, [open, currentClassId]);
+
+  useEffect(() => {
+    if (!targetClassId) return;
+    getClassBatchNames(targetClassId).then(setTargetClassBatches);
+  }, [targetClassId]);
 
   function handleClose() {
     setError(null);
@@ -73,9 +88,9 @@ export function TransferStudentModal({
             value={endBatchNumber}
             onChange={(e) => setEndBatchNumber(Number(e.target.value))}
           >
-            {BATCH_NUMBERS.map((n) => (
-              <option key={n} value={n}>
-                Đợt {n}
+            {currentClassBatches.map((b) => (
+              <option key={b.batchNumber} value={b.batchNumber}>
+                {b.name}
               </option>
             ))}
           </select>
@@ -108,10 +123,11 @@ export function TransferStudentModal({
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             value={startBatchNumber}
             onChange={(e) => setStartBatchNumber(Number(e.target.value))}
+            disabled={targetClassBatches.length === 0}
           >
-            {BATCH_NUMBERS.map((n) => (
-              <option key={n} value={n}>
-                Đợt {n}
+            {targetClassBatches.map((b) => (
+              <option key={b.batchNumber} value={b.batchNumber}>
+                {b.name}
               </option>
             ))}
           </select>

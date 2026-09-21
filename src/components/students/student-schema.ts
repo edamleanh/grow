@@ -20,3 +20,16 @@ export const studentSchema = z.object({
 });
 
 export type StudentInput = z.infer<typeof studentSchema>;
+
+// Ghi danh ngay khi tạo học sinh mới, từ danh sách lớp đang mở của đúng
+// khối (StudentFormModal). Cùng ý nghĩa startBatchNumber như enrollSchema —
+// chỉ tính học phí từ đợt này trở đi, không tạo nợ ảo các đợt trước.
+export const newStudentEnrollmentSchema = z.object({
+  classId: z.string().min(1),
+  startBatchNumber: z.coerce.number().int().min(1).max(12),
+});
+
+export const createStudentSchema = studentSchema.extend({
+  enrollments: z.array(newStudentEnrollmentSchema).default([]),
+});
+export type CreateStudentInput = z.infer<typeof createStudentSchema>;

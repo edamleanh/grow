@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import { StudentFormModal } from "@/components/students/StudentFormModal";
 import { TransferStudentModal } from "@/components/students/TransferStudentModal";
+import { WithdrawStudentModal } from "@/components/classes/WithdrawStudentModal";
+import { AddClassModal } from "@/components/classes/AddClassModal";
 import { formatDong } from "@/lib/currency";
 import type { StudentStatus } from "@prisma/client";
 
@@ -25,6 +27,7 @@ type EnrollmentRow = {
   id: string;
   classId: string;
   className: string;
+  subjectId: string;
   feePerBatch: number;
   enrolledAt: string;
   isActive: boolean;
@@ -68,11 +71,13 @@ export function StudentDetailView({
   enrollments: EnrollmentRow[];
   receipts: ReceiptRow[];
   canManage: boolean;
-  otherClasses: { id: string; name: string }[];
+  otherClasses: { id: string; name: string; subjectId: string }[];
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<"enrollments" | "receipts">("enrollments");
   const [transferEnrollment, setTransferEnrollment] = useState<EnrollmentRow | undefined>(undefined);
+  const [withdrawEnrollment, setWithdrawEnrollment] = useState<EnrollmentRow | undefined>(undefined);
+  const [addClassOpen, setAddClassOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -108,29 +113,34 @@ export function StudentDetailView({
         </div>
       </Card>
 
-      <div className="flex gap-1 border-b border-slate-200">
-        <button
-          type="button"
-          onClick={() => setTab("enrollments")}
-          className={`px-4 py-2 text-sm font-medium ${
-            tab === "enrollments"
-              ? "border-b-2 border-brand-600 text-brand-700"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Lớp Đã Ghi Danh
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("receipts")}
-          className={`px-4 py-2 text-sm font-medium ${
-            tab === "receipts"
-              ? "border-b-2 border-brand-600 text-brand-700"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Lịch Sử Biên Lai Thu Tiền
-        </button>
+      <div className="flex items-center justify-between border-b border-slate-200">
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setTab("enrollments")}
+            className={`px-4 py-2 text-sm font-medium ${
+              tab === "enrollments"
+                ? "border-b-2 border-brand-600 text-brand-700"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Lớp Đã Ghi Danh
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("receipts")}
+            className={`px-4 py-2 text-sm font-medium ${
+              tab === "receipts"
+                ? "border-b-2 border-brand-600 text-brand-700"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Lịch Sử Biên Lai Thu Tiền
+          </button>
+        </div>
+        {canManage && tab === "enrollments" && student.status !== "GRADUATED" && (
+          <Button onClick={() => setAddClassOpen(true)}>+ Ghi Danh Thêm Lớp</Button>
+        )}
       </div>
 
       {tab === "enrollments" && (
@@ -166,13 +176,22 @@ export function StudentDetailView({
                   </td>
                   <td className="px-4 py-2 text-right">
                     {canManage && e.isActive && (
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-brand-600 hover:text-brand-700"
-                        onClick={() => setTransferEnrollment(e)}
-                      >
-                        Chuyển Lớp
-                      </button>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                          onClick={() => setTransferEnrollment(e)}
+                        >
+                          Chuyển Lớp
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-red-600 hover:text-red-700"
+                          onClick={() => setWithdrawEnrollment(e)}
+                        >
+                          Nghỉ Học
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -234,13 +253,36 @@ export function StudentDetailView({
       <StudentFormModal open={editOpen} onClose={() => setEditOpen(false)} student={student} />
       {canManage && (
         <TransferStudentModal
-          key={transferEnrollment?.id ?? "none"}
+          key={`transfer-${transferEnrollment?.id ?? "none"}`}
           open={Boolean(transferEnrollment)}
           onClose={() => setTransferEnrollment(undefined)}
           enrollmentId={transferEnrollment?.id ?? ""}
+          currentClassId={transferEnrollment?.classId ?? ""}
           currentClassName={transferEnrollment?.className ?? ""}
           defaultEndBatchNumber={transferEnrollment?.currentBatchNumber ?? 1}
-          targetClasses={otherClasses.filter((c) => c.id !== transferEnrollment?.classId)}
+          targetClasses={otherClasses.filter(
+            (c) => c.id !== transferEnrollment?.classId && c.subjectId === transferEnrollment?.subjectId,
+          )}
+        />
+      )}
+      {canManage && (
+        <WithdrawStudentModal
+          key={`withdraw-${withdrawEnrollment?.id ?? "none"}`}
+          open={Boolean(withdrawEnrollment)}
+          onClose={() => setWithdrawEnrollment(undefined)}
+          enrollmentId={withdrawEnrollment?.id ?? ""}
+          classId={withdrawEnrollment?.classId ?? ""}
+          className={withdrawEnrollment?.className ?? ""}
+          studentName={student.fullName}
+          defaultEndBatchNumber={withdrawEnrollment?.currentBatchNumber ?? 1}
+        />
+      )}
+      {canManage && (
+        <AddClassModal
+          open={addClassOpen}
+          onClose={() => setAddClassOpen(false)}
+          studentId={student.id}
+          studentGrade={student.grade}
         />
       )}
     </div>

@@ -61,7 +61,7 @@ export default async function ClassesPage({
       classes={rows}
       subjects={subjects}
       academicYears={academicYears.map((y) => ({ id: y.id, name: y.label }))}
-      teachers={teachers.map((t) => ({ id: t.id, name: t.fullName }))}
+      teachers={teachers.map((t) => ({ id: t.id, name: t.fullName, subjectId: t.subjectId }))}
       activeAcademicYearId={activeAcademicYearId}
       canCreate={currentUser.role === "ADMIN"}
     />

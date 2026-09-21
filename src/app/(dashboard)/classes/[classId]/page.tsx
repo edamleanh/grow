@@ -55,22 +55,11 @@ export default async function ClassDetailPage({
     }
   }
 
-  const enrolledStudentIds = new Set(klass.enrollments.map((e) => e.studentId));
-
-  const [subjects, academicYears, teachers, allStudents] = await Promise.all([
+  const [subjects, academicYears, teachers] = await Promise.all([
     prisma.subject.findMany({ orderBy: { name: "asc" } }),
     prisma.academicYear.findMany({ orderBy: { label: "desc" } }),
     prisma.teacher.findMany({ orderBy: { fullName: "asc" } }),
-    currentUser.role === "ADMIN"
-      ? prisma.student.findMany({
-          where: { status: { not: "GRADUATED" } },
-          select: { id: true, code: true, fullName: true },
-          orderBy: { code: "asc" },
-        })
-      : Promise.resolve([]),
   ]);
-
-  const eligibleStudents = allStudents.filter((s) => !enrolledStudentIds.has(s.id));
 
   return (
     <ClassDetailView
@@ -116,8 +105,7 @@ export default async function ClassDetailPage({
       })}
       subjects={subjects}
       academicYears={academicYears.map((y) => ({ id: y.id, name: y.label }))}
-      teachers={teachers.map((t) => ({ id: t.id, name: t.fullName }))}
-      eligibleStudents={eligibleStudents}
+      teachers={teachers.map((t) => ({ id: t.id, name: t.fullName, subjectId: t.subjectId }))}
       canManage={currentUser.role === "ADMIN"}
     />
   );

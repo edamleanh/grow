@@ -7,11 +7,13 @@ import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import { ClassFormModal } from "@/components/classes/ClassFormModal";
 import { BatchFormModal } from "@/components/classes/BatchFormModal";
 import { EnrollStudentModal } from "@/components/classes/EnrollStudentModal";
+import { WithdrawStudentModal } from "@/components/classes/WithdrawStudentModal";
 import { formatDong } from "@/lib/currency";
 import type { BatchStatus, ClassStatus } from "@prisma/client";
 
 type Option = { id: string; name: string };
 type Subject = Option & { defaultFeePerBatch: number };
+type TeacherOption = Option & { subjectId: string };
 
 const CLASS_STATUS_LABELS: Record<ClassStatus, string> = {
   OPEN: "Đang Mở",
@@ -72,7 +74,6 @@ export function ClassDetailView({
   subjects,
   academicYears,
   teachers,
-  eligibleStudents,
   canManage,
 }: {
   klass: ClassRecord;
@@ -80,14 +81,14 @@ export function ClassDetailView({
   students: StudentRow[];
   subjects: Subject[];
   academicYears: Option[];
-  teachers: Option[];
-  eligibleStudents: { id: string; code: string; fullName: string }[];
+  teachers: TeacherOption[];
   canManage: boolean;
 }) {
   const [tab, setTab] = useState<"batches" | "students">("batches");
   const [editClassOpen, setEditClassOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<BatchRow | undefined>(undefined);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState<StudentRow | undefined>(undefined);
   const currentBatchNumber = batches.find((b) => b.status === "ONGOING")?.batchNumber ?? 1;
 
   return (
@@ -211,12 +212,13 @@ export function ClassDetailView({
                 <th className="px-4 py-2 font-medium">Mã HS</th>
                 <th className="px-4 py-2 font-medium">Họ tên</th>
                 <th className="px-4 py-2 font-medium">Đóng phí đợt hiện tại</th>
+                <th className="px-4 py-2 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {students.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
                     Chưa có học sinh ghi danh.
                   </td>
                 </tr>
@@ -234,6 +236,17 @@ export function ClassDetailView({
                     {s.paidStatus === "partial" && <StatusBadge tone="yellow" label="Đóng thiếu" />}
                     {s.paidStatus === "unpaid" && <StatusBadge tone="red" label="Chưa đóng" />}
                     {s.paidStatus === "na" && <StatusBadge tone="gray" label="—" />}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-red-600 hover:text-red-700"
+                        onClick={() => setWithdrawTarget(s)}
+                      >
+                        Nghỉ Học
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -253,19 +266,32 @@ export function ClassDetailView({
         klass={klass}
       />
       <BatchFormModal
-        key={editingBatch?.id ?? "none"}
+        key={`batch-${editingBatch?.id ?? "none"}`}
         open={Boolean(editingBatch)}
         onClose={() => setEditingBatch(undefined)}
         batch={editingBatch}
         teachers={teachers}
+        classSubjectId={klass.subjectId}
       />
       {canManage && (
         <EnrollStudentModal
           open={enrollOpen}
           onClose={() => setEnrollOpen(false)}
           classId={klass.id}
-          eligibleStudents={eligibleStudents}
+          batches={batches.map((b) => ({ batchNumber: b.batchNumber, name: b.name }))}
           defaultBatchNumber={currentBatchNumber}
+        />
+      )}
+      {canManage && (
+        <WithdrawStudentModal
+          key={`withdraw-${withdrawTarget?.enrollmentId ?? "none"}`}
+          open={Boolean(withdrawTarget)}
+          onClose={() => setWithdrawTarget(undefined)}
+          enrollmentId={withdrawTarget?.enrollmentId ?? ""}
+          classId={klass.id}
+          className={klass.name}
+          studentName={withdrawTarget?.studentName ?? ""}
+          defaultEndBatchNumber={currentBatchNumber}
         />
       )}
     </div>

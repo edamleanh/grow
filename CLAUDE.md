@@ -118,8 +118,16 @@ chat hay commit nhầm file này.
 - **Module Học Sinh (Students) — CRUD đầy đủ + trang chi tiết**:
   `src/app/(dashboard)/students/` (list có tìm kiếm, `actions.ts` tự sinh mã
   HS0001/HS0002..., admin-only) và `src/components/students/` (form modal,
-  table, `StudentDetailView` với 2 tab: Lớp Đã Ghi Danh / Lịch Sử Biên Lai —
-  hiện rỗng vì Enrollment/Receipt chưa có nơi tạo dữ liệu).
+  table, `StudentDetailView` với 2 tab: Lớp Đã Ghi Danh / Lịch Sử Biên Lai).
+  **Thêm Mới Học Sinh cho ghi danh ngay**: chọn Khối xong, `StudentFormModal`
+  tự tải danh sách lớp đang mở đúng khối đó (`getOpenClassesByGrade`, nhóm
+  theo môn), tick chọn lớp + đợt nhập học cho từng lớp — `createStudent`
+  tạo Student + các Enrollment trong 1 `prisma.$transaction`, status ra
+  luôn `STUDYING` nếu có ghi danh (thay vì phải tạo `NO_CLASS` rồi vào từng
+  lớp ghi danh riêng). Không áp dụng khi sửa học sinh có sẵn (dùng "+ Ghi
+  Danh Học Sinh" ở Class detail cho việc đó). Đã test trên DB thật: tạo học
+  sinh + ghi danh 2 lớp khác môn với đợt bắt đầu khác nhau trong 1 lần, dọn
+  sạch dữ liệu test.
 - **Module Lớp Học (Classes) — CRUD đầy đủ + tự động sinh 12 Batch**:
   `src/app/(dashboard)/classes/actions.ts` — `createClass` chạy trong
   `prisma.$transaction` tạo Class + đúng `BATCHES_PER_CLASS` (12, hằng số ở
@@ -148,6 +156,29 @@ chat hay commit nhầm file này.
   Đã test trên DB thật: ghi danh giữa chừng đợt 4, chuyển lớp ở đợt 6 sang
   lớp khác đợt 2 — verify cả 2 enrollment record cùng tồn tại đúng
   start/end, dọn sạch dữ liệu test.
+- **Nghỉ Học (Withdraw)** — `withdrawStudent` trong cùng file
+  `enrollment-actions.ts`: đóng enrollment tại `endBatchNumber` (như nửa
+  đầu của `transferStudent`) nhưng **không mở enrollment mới ở đâu cả**; nợ
+  phí đợt cũ vẫn bảo lưu nguyên vẹn. Nếu đây là enrollment active cuối cùng
+  của học sinh, status tự chuyển `STUDYING` → `NO_CLASS` (không đụng
+  `GRADUATED`). UI dùng chung `WithdrawStudentModal`
+  (`src/components/classes/`) ở cả 2 nơi: nút "Nghỉ Học" trên mỗi dòng học
+  sinh ở Class detail Tab 2, và trên mỗi dòng enrollment active ở Student
+  detail Tab 1 (cạnh nút "Chuyển Lớp"). Đã test trên DB thật: nghỉ lớp duy
+  nhất → status về NO_CLASS; nghỉ 1 trong 2 lớp đang học → status vẫn
+  STUDYING vì còn lớp kia active.
+- **Ghi Danh Thêm Lớp từ Student detail** — trước đây chỉ có "Chuyển Lớp"
+  (đổi lớp) ở trang chi tiết học sinh, chưa có cách *thêm* ghi danh lớp mới
+  mà không tạo học sinh mới. Nút "+ Ghi Danh Thêm Lớp" (cạnh tab "Lớp Đã Ghi
+  Danh", ẩn nếu học sinh `GRADUATED`) mở `AddClassModal`
+  (`src/components/classes/`) — đối xứng với "+ Ghi Danh Học Sinh" ở Class
+  detail (chọn lớp thay vì chọn học sinh, vì học sinh đã cố định). Danh
+  sách lớp gợi ý = `getOpenClassesByGrade(studentGrade, studentId)`, loại
+  trừ lớp đang active, nhóm theo môn. Tái dùng nguyên logic phát hiện xung
+  đột cùng môn (`findSameSubjectActiveEnrollment`) như EnrollStudentModal —
+  chọn lớp cùng môn với lớp đang học sẽ tự chuyển sang luồng `transferStudent`
+  thay vì `enrollStudent`. Đã test trên DB thật: loại đúng lớp đang học,
+  vẫn gợi ý lớp khác môn, phát hiện đúng xung đột khi chọn lớp cùng môn.
 - **Module POS (Module 5)** — đầy đủ theo requirements.md §4.6, cho cả 3
   vai trò (Teacher chỉ thấy/thu học sinh & lớp mình phụ trách, enforce ở
   `src/app/(dashboard)/pos/actions.ts`):
@@ -183,6 +214,20 @@ chat hay commit nhầm file này.
   - Kết quả: 77 lớp (924 batch), 1423 học sinh (64 GRADUATED / 545 NO_CLASS
     / 814 STUDYING), 1223 enrollment. Đã verify qua UI (Dashboard, danh
     sách/chi tiết Học sinh, danh sách/chi tiết Lớp) trên DB thật.
+- **Lọc theo thuộc tính liên quan ở các dropdown chọn đối tượng** — tránh
+  đề xuất sai (học sinh khác khối, giáo viên khác môn, lớp đích khác môn):
+  - `searchEligibleStudents` (Ghi Danh) chỉ gợi ý học sinh **cùng khối** với
+    lớp đang ghi danh.
+  - `ClassFormModal`/`BatchFormModal`: dropdown Giáo viên chỉ hiện giáo
+    viên có `subjectId` khớp môn của lớp/đợt. **Vì dữ liệu import cũ gán
+    tạm GV001 (Toán) cho cả 76 lớp không phải Toán**, cả 2 modal vẫn giữ
+    giáo viên hiện tại trong danh sách kèm nhãn "(khác môn)" nếu bị lệch —
+    không làm mất lựa chọn đang có, chỉ chặn việc *chọn mới* sai môn.
+  - `TransferStudentModal`: "Chuyển sang Lớp" chỉ liệt kê lớp **cùng môn**
+    với lớp đang học (đúng ví dụ "Toán 6A → Toán 6B" ở edumanager-ops §4).
+  - Đã verify cả 3 trên DB thật (khối không khớp bị loại, môn không khớp bị
+    loại, giáo viên lệch môn từ dữ liệu import vẫn hiện kèm nhãn cảnh báo
+    thay vì biến mất).
 
 ## Việc còn thiếu (chưa implement)
 

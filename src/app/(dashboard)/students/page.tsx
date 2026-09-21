@@ -9,18 +9,22 @@ import { StudentsView } from "@/components/students/StudentsView";
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; grade?: string }>;
 }) {
   const currentUser = await getCurrentUser();
   if (currentUser.role !== "ADMIN") {
     redirect("/pos");
   }
 
-  const { q } = await searchParams;
+  const { q, grade } = await searchParams;
   const matchingIds = q ? await searchStudentIds(q) : undefined;
+  const gradeNumber = grade ? parseInt(grade, 10) : undefined;
 
   const students = await prisma.student.findMany({
-    where: matchingIds ? { id: { in: matchingIds } } : undefined,
+    where: {
+      ...(matchingIds ? { id: { in: matchingIds } } : {}),
+      ...(gradeNumber ? { grade: gradeNumber } : {}),
+    },
     include: {
       // "Các lớp đang học" = ghi danh chưa kết thúc (endBatchNumber null).
       enrollments: {
