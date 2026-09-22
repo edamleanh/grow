@@ -223,11 +223,38 @@ chat hay commit nhầm file này.
     tạm GV001 (Toán) cho cả 76 lớp không phải Toán**, cả 2 modal vẫn giữ
     giáo viên hiện tại trong danh sách kèm nhãn "(khác môn)" nếu bị lệch —
     không làm mất lựa chọn đang có, chỉ chặn việc *chọn mới* sai môn.
-  - `TransferStudentModal`: "Chuyển sang Lớp" chỉ liệt kê lớp **cùng môn**
-    với lớp đang học (đúng ví dụ "Toán 6A → Toán 6B" ở edumanager-ops §4).
+  - `TransferStudentModal`: "Chuyển sang Lớp" chỉ liệt kê lớp **cùng môn
+    và cùng khối** với lớp đang học (đúng ví dụ "Toán 6A → Toán 6B" ở
+    edumanager-ops §4). Lọc khối được thêm sau khi phát hiện thiếu sót —
+    ban đầu `students/[studentId]/page.tsx` chỉ lấy `status: OPEN` mà quên
+    lọc `grade`, khiến chuyển lớp gợi ý cả lớp khác khối (VD khối 6 gợi ý
+    cả khối 10/11); đã thêm `sameGradeClasses` filter trước khi truyền
+    xuống view.
   - Đã verify cả 3 trên DB thật (khối không khớp bị loại, môn không khớp bị
     loại, giáo viên lệch môn từ dữ liệu import vẫn hiện kèm nhãn cảnh báo
     thay vì biến mất).
+- **Module "In Danh Sách"** (`/print-roster`, Admin + Teacher — Teacher chỉ
+  thấy lớp mình phụ trách): chọn nhiều lớp (filter theo môn/khối, lọc theo
+  năm học đang chọn ở header) → submit form thường (`method="POST"`, không
+  cần JS fetch/blob) tới Route Handler `src/app/api/print-roster/route.ts`
+  → trả về `.xlsx` tải trực tiếp qua header `Content-Disposition`. Dùng
+  `exceljs` (không phải Python/openpyxl vì phải chạy trong Next.js server).
+  **Nạp thẳng file mẫu gốc của trung tâm** —
+  `src/app/api/print-roster/templete-danh-sach.xlsx` (copy y nguyên từ
+  `templete danh sach.xlsx`) — bằng `workbook.xlsx.readFile()`, rồi **chỉ
+  ghi giá trị vào**, không style/format/công thức gì cả: mỗi lớp chiếm 1
+  trong 135 khối 30-dòng có sẵn của sheet "HOÁ", chỉ set tiêu đề (A1 =
+  "DANH SÁCH {MÔN}"), nhãn lớp (I1), và cột STT/Họ và tên/Tên/SĐT (dòng
+  5-29, tối đa 25 học sinh, sắp theo `sortByVietnameseGivenName`). Toàn bộ
+  font/màu/viền/độ rộng cột/công thức (`=$R$1` ở header, `SUBTOTAL` ở dòng
+  30) đều là của file mẫu, chưa từng bị code đụng tới. **Lớp quá 25 học
+  sinh tự động tràn sang khối tiếp theo** (nhãn thêm "(tiếp theo)"), dùng
+  đúng khối kế tiếp có sẵn trong 135 khối — không tạo/xoá khối nào cả.
+  `next.config.ts` có `outputFileTracingIncludes` đảm bảo file mẫu này
+  được đóng gói cùng function khi deploy (Vercel). Đã test qua POST thật:
+  font/màu Times New Roman đúng nguyên bản, khối chưa dùng vẫn giữ
+  placeholder gốc "DANH SÁCH AV 1A", công thức header/subtotal nguyên vẹn,
+  và 1 lớp 30 học sinh tự tách đúng 2 khối (25+5, nhãn "tiếp theo").
 
 ## Việc còn thiếu (chưa implement)
 

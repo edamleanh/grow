@@ -48,7 +48,7 @@ export default async function StudentDetailPage({
     }),
     prisma.class.findMany({
       where: { status: "OPEN" },
-      select: { id: true, name: true, subjectId: true },
+      select: { id: true, name: true, subjectId: true, grade: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -56,6 +56,11 @@ export default async function StudentDetailPage({
   if (!student) {
     notFound();
   }
+
+  // "Chuyển sang Lớp" chỉ nên gợi ý lớp cùng khối với học sinh — chuyển
+  // khác khối không phải "chuyển lớp" bình thường (đó là trường hợp đặc
+  // biệt admin nên tự làm thủ công, không nên xuất hiện làm mặc định).
+  const sameGradeClasses = otherClasses.filter((c) => c.grade === student.grade);
 
   return (
     <StudentDetailView
@@ -93,7 +98,7 @@ export default async function StudentDetailPage({
         })),
       }))}
       canManage={currentUser.role === "ADMIN"}
-      otherClasses={otherClasses}
+      otherClasses={sameGradeClasses}
     />
   );
 }

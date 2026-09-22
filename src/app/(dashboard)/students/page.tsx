@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { searchStudentIds } from "@/lib/search";
+import { sortByVietnameseGivenName } from "@/lib/vietnamese-name";
 import { StudentsView } from "@/components/students/StudentsView";
 
 // Module 2: Danh sách Học Sinh (requirements.md §4.3) — Admin-only.
@@ -32,10 +33,9 @@ export default async function StudentsPage({
         include: { class: { select: { name: true } } },
       },
     },
-    orderBy: { code: "asc" },
   });
 
-  const rows = students.map((student) => ({
+  const rows = sortByVietnameseGivenName(students, (s) => s.fullName).map((student) => ({
     id: student.id,
     code: student.code,
     fullName: student.fullName,

@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { ClassDetailView } from "@/components/classes/ClassDetailView";
+import { sortByVietnameseGivenName } from "@/lib/vietnamese-name";
 
 // Trang Chi Tiết Lớp Học Full-Page (requirements.md §4.4) — Admin + Teacher.
 export default async function ClassDetailPage({
@@ -85,7 +86,7 @@ export default async function ClassDetailPage({
         teacherId: b.teacherId,
         teacherName: b.teacher.fullName,
       }))}
-      students={klass.enrollments.map((e) => {
+      students={sortByVietnameseGivenName(klass.enrollments, (e) => e.student.fullName).map((e) => {
         const paid = paidByStudent.get(e.studentId) ?? 0;
         const fee = currentBatch?.feePerBatch ?? klass.feePerBatch;
         const paidStatus = !currentBatch

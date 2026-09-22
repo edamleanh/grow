@@ -16,6 +16,7 @@ const NAV_ITEMS: { href: string; label: string; icon: string; roles: UserRole[] 
   { href: "/classes", label: "Quản Lý Lớp Học", icon: "🏫", roles: ["ADMIN", "TEACHER"] },
   { href: "/teachers", label: "Quản Lý Giáo Viên", icon: "👨‍🏫", roles: ["ADMIN"] },
   { href: "/pos", label: "POS Thu Tiền Học Phí", icon: "💳", roles: ["ADMIN", "CASHIER", "TEACHER"] },
+  { href: "/print-roster", label: "In Danh Sách", icon: "🖨️", roles: ["ADMIN", "TEACHER"] },
 ];
 
 const ROLE_LABELS: Record<UserRole, string> = {
