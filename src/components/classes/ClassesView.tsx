@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
@@ -53,12 +53,18 @@ export function ClassesView({
   const subjectFilter = searchParams.get("subjectId") ?? "";
   const gradeFilter = searchParams.get("grade") ?? "";
 
-  function submitSearch(event: React.FormEvent) {
-    event.preventDefault();
-    const params = new URLSearchParams(searchParams);
-    if (search) params.set("q", search);
-    else params.delete("q");
-    router.push(`/classes?${params.toString()}`);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Auto-searches after typing pauses — no Enter/nút "Tìm" cần bấm nữa.
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams);
+      if (value) params.set("q", value);
+      else params.delete("q");
+      router.push(`/classes?${params.toString()}`);
+    }, 300);
   }
 
   function updateFilter(key: "subjectId" | "grade", value: string) {
@@ -76,17 +82,12 @@ export function ClassesView({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <form onSubmit={submitSearch} className="flex gap-2">
-          <input
-            className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-            placeholder="Tìm theo Tên lớp, Giáo viên"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <Button type="submit" variant="secondary">
-            Tìm
-          </Button>
-        </form>
+        <input
+          className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+          placeholder="Tìm theo Tên lớp, Giáo viên"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+        />
         <select
           className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           value={subjectFilter}

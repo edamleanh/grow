@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { enrollSchema, transferSchema } from "@/components/classes/enrollment-schema";
@@ -43,19 +43,25 @@ export function EnrollStudentModal({
   const [isSearching, startSearch] = useTransition();
   const [isCheckingConflict, startConflictCheck] = useTransition();
   const [isSubmitting, startSubmit] = useTransition();
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Debounced — searching on every keystroke fired a DB round-trip per
+  // character typed, which is what actually made search feel laggy.
   function handleSearchChange(value: string) {
     setSearch(value);
     setSelected(undefined);
     setConflict(undefined);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     if (value.trim().length < 1) {
       setResults([]);
       return;
     }
-    startSearch(async () => {
-      const rows = await searchEligibleStudents(classId, value.trim());
-      setResults(rows);
-    });
+    searchTimeoutRef.current = setTimeout(() => {
+      startSearch(async () => {
+        const rows = await searchEligibleStudents(classId, value.trim());
+        setResults(rows);
+      });
+    }, 300);
   }
 
   function pickStudent(student: StudentOption) {

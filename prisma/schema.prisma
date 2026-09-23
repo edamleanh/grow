@@ -56,13 +56,17 @@ model User {
 }
 
 model AcademicYear {
-  id        String   @id @default(cuid())
-  label     String   @unique // e.g. "2025-2026"
-  startDate DateTime
-  endDate   DateTime
-  isActive  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  label      String    @unique // e.g. "2025-2026"
+  startDate  DateTime
+  endDate    DateTime
+  isActive   Boolean   @default(false)
+  // Set once Year-End Promotion has run with this year as the SOURCE —
+  // guards against running it twice (edumanager-ops §2). Null = not yet
+  // promoted from.
+  promotedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   classes Class[]
 }

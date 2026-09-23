@@ -256,10 +256,45 @@ chat hay commit nhầm file này.
   placeholder gốc "DANH SÁCH AV 1A", công thức header/subtotal nguyên vẹn,
   và 1 lớp 30 học sinh tự tách đúng 2 khối (25+5, nhãn "tiếp theo").
 
+## Đã xong (tiếp)
+
+- **Year-End Promotion** (`/year-end-promotion`, Admin-only) —
+  `src/app/(dashboard)/year-end-promotion/actions.ts`. Quyết định nghiệp vụ
+  đã thống nhất với user (2026-09-22, không có trong requirements.md gốc):
+  - Lớp Khối 12 **không** nhân bản lên "khối 13" — đổi tên tại chỗ thành
+    `"{Tên cũ} K{2 số cuối năm bắt đầu}{2 số cuối năm kết thúc}"` (VD
+    "Anh Văn 12A" của niên khóa 2025-2026 → "Anh Văn 12K2526A"), status →
+    `CLOSED`, ở lại niên khóa cũ làm hồ sơ lưu trữ.
+  - Tăng khối áp dụng cho **cả** `STUDYING` lẫn `NO_CLASS` (không chỉ học
+    sinh đang có lớp) — chỉ bỏ qua học sinh đã `GRADUATED` sẵn. Vì `Student`
+    không có `academicYearId` nên bước này chạy toàn hệ thống, không scope
+    theo niên khóa nguồn được.
+  - Lớp mới (Khối 1-11) giữ nguyên học phí + giáo viên phụ trách của lớp cũ
+    (`promotedFromId` link tới lớp cũ), tự sinh đủ 12 Batch mới.
+  - Enrollment đang active ở lớp cũ: đóng lại tại đợt 12
+    (`endBatchNumber=12`, bảo lưu đúng lịch sử/nợ phí), rồi nếu lớp được
+    nhân bản thì mở Enrollment mới ở lớp mới từ đợt 1.
+  - **Chống chạy trùng**: field mới `AcademicYear.promotedAt` — set xong là
+    khoá, nút bị disable + hiện rõ ngày đã kết chuyển nếu bấm lại.
+  - **Màn hình xem trước** trước khi xác nhận: đếm số học sinh tăng khối/
+    tốt nghiệp, số lớp nhân bản/lưu trữ, số enrollment kết chuyển — cộng
+    thêm bước "gõ đúng tên niên khóa đích để xác nhận" (kiểu GitHub) trước
+    khi nút "Xác Nhận" bật lên, vì đây là thao tác không hoàn tác được.
+  - Toàn bộ chạy trong 1 `prisma.$transaction` (timeout 120s, vì thao tác
+    trên toàn bộ lớp/học sinh trung tâm).
+  - Đã test: copy nguyên logic transaction vào script chạy trên dữ liệu giả
+    lập cô lập hoàn toàn (niên khóa/lớp/học sinh giả với id/tên riêng biệt,
+    tạm tắt `isActive` của năm 2025-2026 thật trong lúc test rồi bật lại) —
+    verify đúng cả 2 nhánh (tăng khối thường, tốt nghiệp Khối 12), đúng bảo
+    lưu enrollment cũ, đúng chặn chạy lần 2. Verify xong đã xoá sạch dữ liệu
+    giả và xác nhận 848 học sinh / 72 lớp thật không suy suyển gì. **Chưa
+    chạy thật trên niên khóa 2025-2026** — để Admin tự bấm khi thật sự sẵn
+    sàng kết thúc năm học (đã verify màn hình xem trước hiện đúng số liệu
+    thật: 834 học sinh tăng khối, 14 tốt nghiệp, 71 lớp nhân bản, 1 lớp lưu
+    trữ, 1119 enrollment kết chuyển).
+
 ## Việc còn thiếu (chưa implement)
 
-- Year-End Promotion (kết chuyển niên khóa, edumanager-ops §2) — cần chạy
-  trong `prisma.$transaction`.
 - Payroll report theo giáo viên/đợt (Tab 2 trang chi tiết Giáo viên).
 - Trang chi tiết Giáo viên (hiện là placeholder "Chưa có dữ liệu").
 - Chưa có test suite.
@@ -273,3 +308,13 @@ chat hay commit nhầm file này.
   không nhân/chia 1000 rải rác trong code.
 - Mọi Server Action mutate dữ liệu phải gọi `lib/rbac.ts` để enforce quyền —
   không chỉ ẩn nút trên UI.
+- **Mọi ô tìm kiếm phải tự động tìm khi gõ (debounce ~300ms qua
+  `useRef<ReturnType<typeof setTimeout>>`), không bắt bấm nút "Tìm"/Enter.**
+  2 kiểu implementation tuỳ nguồn dữ liệu:
+  - List page lọc qua URL (`StudentsView`/`ClassesView`/`TeachersView`):
+    debounce trước khi `router.push` cập nhật query param (search chạy lại
+    ở Server Component).
+  - Modal search-as-you-type gọi Server Action trực tiếp (`PosView`,
+    `EnrollStudentModal`): debounce trước khi gọi action. Không debounce
+    từng gây lag thật (mỗi ký tự gõ = 1-2 round-trip DB), nên đừng bỏ khi
+    thêm ô search mới.

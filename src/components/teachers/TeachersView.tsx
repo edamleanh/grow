@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { TeacherFormModal } from "@/components/teachers/TeacherFormModal";
@@ -32,12 +32,18 @@ export function TeachersView({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
-  function submitSearch(event: React.FormEvent) {
-    event.preventDefault();
-    const params = new URLSearchParams(searchParams);
-    if (search) params.set("q", search);
-    else params.delete("q");
-    router.push(`/teachers?${params.toString()}`);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Auto-searches after typing pauses — no Enter/nút "Tìm" cần bấm nữa.
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams);
+      if (value) params.set("q", value);
+      else params.delete("q");
+      router.push(`/teachers?${params.toString()}`);
+    }, 300);
   }
 
   function openCreate() {
@@ -69,17 +75,12 @@ export function TeachersView({
         <Button onClick={openCreate}>+ Thêm Mới Giáo Viên</Button>
       </div>
 
-      <form onSubmit={submitSearch} className="flex gap-2">
-        <input
-          className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-          placeholder="Tìm theo Tên GV, SĐT, Môn phụ trách"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <Button type="submit" variant="secondary">
-          Tìm
-        </Button>
-      </form>
+      <input
+        className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+        placeholder="Tìm theo Tên GV, SĐT, Môn phụ trách"
+        value={search}
+        onChange={(e) => handleSearchChange(e.target.value)}
+      />
 
       {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
 

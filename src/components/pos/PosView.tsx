@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
@@ -68,17 +68,24 @@ function PaymentPanel() {
   const [printableReceipt, setPrintableReceipt] = useState<PrintableReceipt | undefined>(undefined);
   const [isSearching, startSearch] = useTransition();
   const [isSubmitting, startSubmit] = useTransition();
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Debounced — searching on every keystroke fired 2 DB round-trips per
+  // character typed (search-ids query + findMany), which is what actually
+  // made search feel laggy, far more than raw network latency to Supabase.
   function handleSearchChange(value: string) {
     setSearch(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     if (value.trim().length < 1) {
       setResults([]);
       return;
     }
-    startSearch(async () => {
-      const rows = await searchStudents(value.trim());
-      setResults(rows);
-    });
+    searchTimeoutRef.current = setTimeout(() => {
+      startSearch(async () => {
+        const rows = await searchStudents(value.trim());
+        setResults(rows);
+      });
+    }, 300);
   }
 
   function selectStudent(student: StudentOption) {

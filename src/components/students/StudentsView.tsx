@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
@@ -41,12 +41,20 @@ export function StudentsView({ students }: { students: StudentRow[] }) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
 
-  function submitSearch(event: React.FormEvent) {
-    event.preventDefault();
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function pushSearch(value: string) {
     const params = new URLSearchParams(searchParams);
-    if (search) params.set("q", search);
+    if (value) params.set("q", value);
     else params.delete("q");
     router.push(`/students?${params.toString()}`);
+  }
+
+  // Auto-searches after typing pauses — no Enter/nút "Tìm" cần bấm nữa.
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => pushSearch(value), 300);
   }
 
   function updateGradeFilter(value: string) {
@@ -86,17 +94,12 @@ export function StudentsView({ students }: { students: StudentRow[] }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <form onSubmit={submitSearch} className="flex gap-2">
-          <input
-            className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
-            placeholder="Tìm theo Họ tên, SĐT, Mã HS"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <Button type="submit" variant="secondary">
-            Tìm
-          </Button>
-        </form>
+        <input
+          className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
+          placeholder="Tìm theo Họ tên, SĐT, Mã HS"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+        />
         <select
           className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
           value={gradeFilter}
