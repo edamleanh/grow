@@ -318,3 +318,23 @@ chat hay commit nhầm file này.
     `EnrollStudentModal`): debounce trước khi gọi action. Không debounce
     từng gây lag thật (mỗi ký tự gõ = 1-2 round-trip DB), nên đừng bỏ khi
     thêm ô search mới.
+- **`generator client` bật `previewFeatures = ["relationJoins"]`** — quan
+  trọng, đừng tắt. Phát hiện khi điều tra lag ở ô search (2026-09-23): với
+  driver adapter (`@prisma/adapter-pg`), Prisma 7 mặc định tách MỌI
+  `include`/`select` quan hệ lồng nhau (kể cả quan hệ 1-1 như
+  `class.subject`) thành round-trip SQL riêng thay vì 1 JOIN — mỗi
+  round-trip tốn ~60-200ms tới Supabase Singapore, nên 1 trang có vài tầng
+  include (VD Class detail: subject+academicYear+primaryTeacher+batches.teacher+
+  enrollments.student) từng mất 6-9 round-trip/~600ms-1s. Bật
+  `relationJoins` đổi mặc định sang 1 câu SQL JOIN cho toàn bộ app (không
+  cần sửa tay từng query, không cần truyền `relationLoadStrategy: "join"`
+  ở mỗi query — mặc định đã là "join"). Đã benchmark trước/sau trên DB
+  thật, verify kết quả giống hệt dữ liệu cũ (850 học sinh, không sai lệch)
+  rồi mới bật: Students list search ~250ms→~74ms, Teachers list
+  ~không đo trước/123ms sau, Class detail đầy đủ ~600ms→153ms, Student
+  detail đầy đủ (kể cả lịch sử biên lai) →90ms, POS
+  `getStudentPaymentOverview`/`getDebtReport` →65-66ms — tất cả còn đúng 1
+  query. Riêng trang Students list còn dùng thêm 1 câu `$queryRaw` gộp cả
+  search + lọc khối + tên lớp đang học (viết trước khi tìm ra nguyên nhân
+  gốc `relationJoins`, vẫn đúng và nhanh nên giữ nguyên, không cần đổi lại
+  include).
