@@ -56,10 +56,18 @@ export default async function ClassDetailPage({
     }
   }
 
-  const [subjects, academicYears, teachers] = await Promise.all([
+  const [subjects, academicYears, teachers, sameGradeClasses] = await Promise.all([
     prisma.subject.findMany({ orderBy: { name: "asc" } }),
     prisma.academicYear.findMany({ orderBy: { label: "desc" } }),
     prisma.teacher.findMany({ orderBy: { fullName: "asc" } }),
+    // Ứng viên cho "Chuyển Lớp" — TransferStudentModal tự lọc tiếp còn
+    // đúng cùng môn + khác lớp hiện tại (đúng ví dụ "Toán 6A → Toán 6B" ở
+    // edumanager-ops §4).
+    prisma.class.findMany({
+      where: { status: "OPEN", grade: klass.grade },
+      select: { id: true, name: true, subjectId: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -107,6 +115,7 @@ export default async function ClassDetailPage({
       subjects={subjects}
       academicYears={academicYears.map((y) => ({ id: y.id, name: y.label }))}
       teachers={teachers.map((t) => ({ id: t.id, name: t.fullName, subjectId: t.subjectId }))}
+      otherClasses={sameGradeClasses}
       canManage={currentUser.role === "ADMIN"}
     />
   );

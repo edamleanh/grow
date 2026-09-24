@@ -292,6 +292,13 @@ chat hay commit nhầm file này.
     sàng kết thúc năm học (đã verify màn hình xem trước hiện đúng số liệu
     thật: 834 học sinh tăng khối, 14 tốt nghiệp, 71 lớp nhân bản, 1 lớp lưu
     trữ, 1119 enrollment kết chuyển).
+- **Nút "Chuyển Lớp" ở Class detail Tab 2** — trước đây chỉ có ở Student
+  detail (theo từng enrollment). Thêm cạnh nút "Nghỉ Học" trên mỗi dòng học
+  sinh ở `ClassDetailView`, tái dùng nguyên `TransferStudentModal` (không
+  tạo modal mới). `classes/[classId]/page.tsx` truyền thêm `otherClasses`
+  (lớp `OPEN` cùng khối với lớp đang xem) xuống view; modal tự lọc tiếp còn
+  đúng cùng môn + khác lớp hiện tại, giống hệt cách StudentDetailView đang
+  làm.
 
 ## Việc còn thiếu (chưa implement)
 

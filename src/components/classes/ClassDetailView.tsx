@@ -8,6 +8,7 @@ import { ClassFormModal } from "@/components/classes/ClassFormModal";
 import { BatchFormModal } from "@/components/classes/BatchFormModal";
 import { EnrollStudentModal } from "@/components/classes/EnrollStudentModal";
 import { WithdrawStudentModal } from "@/components/classes/WithdrawStudentModal";
+import { TransferStudentModal } from "@/components/students/TransferStudentModal";
 import { formatDong } from "@/lib/currency";
 import type { BatchStatus, ClassStatus } from "@prisma/client";
 
@@ -74,6 +75,7 @@ export function ClassDetailView({
   subjects,
   academicYears,
   teachers,
+  otherClasses,
   canManage,
 }: {
   klass: ClassRecord;
@@ -82,6 +84,7 @@ export function ClassDetailView({
   subjects: Subject[];
   academicYears: Option[];
   teachers: TeacherOption[];
+  otherClasses: { id: string; name: string; subjectId: string }[];
   canManage: boolean;
 }) {
   const [tab, setTab] = useState<"batches" | "students">("batches");
@@ -89,6 +92,7 @@ export function ClassDetailView({
   const [editingBatch, setEditingBatch] = useState<BatchRow | undefined>(undefined);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState<StudentRow | undefined>(undefined);
+  const [transferTarget, setTransferTarget] = useState<StudentRow | undefined>(undefined);
   const currentBatchNumber = batches.find((b) => b.status === "ONGOING")?.batchNumber ?? 1;
 
   return (
@@ -239,13 +243,22 @@ export function ClassDetailView({
                   </td>
                   <td className="px-4 py-2 text-right">
                     {canManage && (
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-red-600 hover:text-red-700"
-                        onClick={() => setWithdrawTarget(s)}
-                      >
-                        Nghỉ Học
-                      </button>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                          onClick={() => setTransferTarget(s)}
+                        >
+                          Chuyển Lớp
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-red-600 hover:text-red-700"
+                          onClick={() => setWithdrawTarget(s)}
+                        >
+                          Nghỉ Học
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -292,6 +305,18 @@ export function ClassDetailView({
           className={klass.name}
           studentName={withdrawTarget?.studentName ?? ""}
           defaultEndBatchNumber={currentBatchNumber}
+        />
+      )}
+      {canManage && (
+        <TransferStudentModal
+          key={`transfer-${transferTarget?.enrollmentId ?? "none"}`}
+          open={Boolean(transferTarget)}
+          onClose={() => setTransferTarget(undefined)}
+          enrollmentId={transferTarget?.enrollmentId ?? ""}
+          currentClassId={klass.id}
+          currentClassName={klass.name}
+          defaultEndBatchNumber={currentBatchNumber}
+          targetClasses={otherClasses.filter((c) => c.id !== klass.id && c.subjectId === klass.subjectId)}
         />
       )}
     </div>
