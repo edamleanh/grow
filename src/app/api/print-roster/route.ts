@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sortByVietnameseGivenName, givenName } from "@/lib/vietnamese-name";
+import { sortClassesBySection } from "@/lib/class-order";
 
 // Module "In Danh Sách": pick one or more classes and download an .xlsx
 // roster. This loads the center's actual paper-form template
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     return new Response("Chưa chọn lớp nào.", { status: 400 });
   }
 
-  const classes = await prisma.class.findMany({
+  const unorderedClasses = await prisma.class.findMany({
     where: {
       id: { in: classIds },
       // Teacher can only export rosters for classes they teach — same
@@ -57,12 +58,15 @@ export async function POST(request: Request) {
         include: { student: { select: { code: true, fullName: true, phone: true } } },
       },
     },
-    orderBy: { name: "asc" },
   });
 
-  if (classes.length === 0) {
+  if (unorderedClasses.length === 0) {
     return new Response("Không có lớp hợp lệ để xuất.", { status: 400 });
   }
+
+  // Ưu tiên lớp "O" đứng đầu, rồi mới tới A, B, C, D... trong thứ tự block
+  // của file Excel — giống trang chọn lớp.
+  const classes = sortClassesBySection(unorderedClasses);
 
   type EnrollmentRow = (typeof classes)[number]["enrollments"][number];
   const pagesToFill: { title: string; label: string; students: EnrollmentRow[] }[] = [];

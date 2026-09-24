@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveAcademicYearId } from "@/lib/academic-year";
+import { sortClassesBySection } from "@/lib/class-order";
 import { PrintRosterView } from "@/components/print-roster/PrintRosterView";
 
 // Module "In Danh Sách": chọn 1 hay nhiều lớp rồi xuất file Excel (danh
@@ -30,12 +31,14 @@ export default async function PrintRosterPage({
         subject: { select: { name: true } },
         _count: { select: { enrollments: { where: { endBatchNumber: null } } } },
       },
-      orderBy: [{ subject: { name: "asc" } }, { name: "asc" }],
     }),
     prisma.subject.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  const rows = classes.map((c) => ({
+  // Ưu tiên lớp "O" đứng đầu, rồi mới tới A, B, C, D... — không sort được
+  // thứ tự này bằng `orderBy` của Prisma (chỉ so sánh chuỗi thường), nên sort
+  // lại ở JS sau khi lấy dữ liệu.
+  const rows = sortClassesBySection(classes).map((c) => ({
     id: c.id,
     name: c.name,
     grade: c.grade,
