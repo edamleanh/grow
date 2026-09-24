@@ -8,8 +8,16 @@ import { prisma } from "@/lib/prisma";
 // callers do a normal `where: { id: { in: ids } }` findMany afterwards so
 // `include`/relations still work as usual.
 
+// Trims leading/trailing whitespace and collapses internal double-spaces
+// (typos like "anh  thu" or a trailing space from autocomplete/copy-paste)
+// down to a single space each, so the ILIKE pattern still matches names
+// that only ever have single spaces between words.
+export function normalizeSearchTerm(query: string): string {
+  return query.trim().replace(/\s+/g, " ");
+}
+
 export async function searchStudentIds(query: string): Promise<string[]> {
-  const term = `%${query}%`;
+  const term = `%${normalizeSearchTerm(query)}%`;
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM "Student"
     WHERE unaccent("fullName") ILIKE unaccent(${term})
@@ -20,7 +28,7 @@ export async function searchStudentIds(query: string): Promise<string[]> {
 }
 
 export async function searchTeacherIds(query: string): Promise<string[]> {
-  const term = `%${query}%`;
+  const term = `%${normalizeSearchTerm(query)}%`;
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT t.id FROM "Teacher" t
     JOIN "Subject" s ON s.id = t."subjectId"
@@ -32,7 +40,7 @@ export async function searchTeacherIds(query: string): Promise<string[]> {
 }
 
 export async function searchClassIds(query: string): Promise<string[]> {
-  const term = `%${query}%`;
+  const term = `%${normalizeSearchTerm(query)}%`;
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT c.id FROM "Class" c
     JOIN "Teacher" t ON t.id = c."primaryTeacherId"

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Prisma, type StudentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { normalizeSearchTerm } from "@/lib/search";
 import { sortByVietnameseGivenName } from "@/lib/vietnamese-name";
 import { StudentsView } from "@/components/students/StudentsView";
 
@@ -35,7 +36,7 @@ export default async function StudentsPage({
   // chưa kết thúc) đều gộp trong 1 query thay vì 3 query riêng (mỗi round-trip
   // tới Supabase Singapore tốn ~60-200ms, gộp lại vì `include` lồng nhau của
   // Prisma sinh ra nhiều round-trip riêng khi dùng driver adapter).
-  const term = q ? `%${q}%` : null;
+  const term = q ? `%${normalizeSearchTerm(q)}%` : null;
   const rows = await prisma.$queryRaw<StudentRow[]>`
     SELECT
       s.id, s.code, s."fullName", s.phone, s.grade, s.note, s.status,
