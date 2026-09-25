@@ -109,6 +109,19 @@ export async function POST(request: Request) {
     sheet.getCell(base + 1, 1).value = page.title;
     sheet.getCell(base + 1, 9).value = page.label;
 
+    // QUAN TRỌNG: file mẫu gốc không hề trống — nó là bản mẫu đã có sẵn dữ
+    // liệu học sinh thật (specimen) ở nhiều block. Phải xoá sạch cả 25 dòng
+    // (5-29) trước khi ghi, nếu không lớp mới ít học sinh hơn sẽ để sót
+    // dòng cũ phía dưới (VD lớp 5 học sinh nhưng block cũ có sẵn 20 dòng ->
+    // hiện ra 20 học sinh, 15 dòng là "ma" từ bản mẫu).
+    for (let i = 0; i < MAX_STUDENTS_PER_BLOCK; i++) {
+      const row = base + DATA_FIRST_ROW + i;
+      sheet.getCell(row, 1).value = null;
+      sheet.getCell(row, 2).value = null;
+      sheet.getCell(row, 3).value = null;
+      sheet.getCell(row, 4).value = null;
+    }
+
     page.students.forEach((enrollment, i) => {
       const row = base + DATA_FIRST_ROW + i;
       const ten = givenName(enrollment.student.fullName);
