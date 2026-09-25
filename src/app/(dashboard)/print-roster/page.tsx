@@ -29,20 +29,22 @@ export default async function PrintRosterPage({
       },
       include: {
         subject: { select: { name: true } },
+        primaryTeacher: { select: { fullName: true } },
         _count: { select: { enrollments: { where: { endBatchNumber: null } } } },
       },
     }),
     prisma.subject.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  // Ưu tiên lớp "O" đứng đầu, rồi mới tới A, B, C, D... — không sort được
-  // thứ tự này bằng `orderBy` của Prisma (chỉ so sánh chuỗi thường), nên sort
-  // lại ở JS sau khi lấy dữ liệu.
+  // Sort theo môn, rồi khối (số), rồi "O" đứng đầu trước A, B, C, D... —
+  // không sort được bằng `orderBy` của Prisma (chỉ so sánh chuỗi thường,
+  // "10" < "2"), nên sort lại ở JS sau khi lấy dữ liệu.
   const rows = sortClassesBySection(classes).map((c) => ({
     id: c.id,
     name: c.name,
     grade: c.grade,
     subjectName: c.subject.name,
+    teacherName: c.primaryTeacher.fullName,
     studentCount: c._count.enrollments,
   }));
 

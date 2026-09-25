@@ -10,6 +10,7 @@ type ClassRow = {
   name: string;
   grade: number;
   subjectName: string;
+  teacherName: string;
   studentCount: number;
 };
 
@@ -115,7 +116,10 @@ export function PrintRosterView({
                       checked={selected.has(cls.id)}
                       onChange={() => toggleClass(cls.id)}
                     />
-                    {cls.name} <span className="text-xs text-slate-400">({cls.studentCount})</span>
+                    <span>
+                      {cls.name} — {cls.teacherName}{" "}
+                      <span className="text-xs text-slate-400">({cls.studentCount})</span>
+                    </span>
                   </label>
                 ))}
               </div>

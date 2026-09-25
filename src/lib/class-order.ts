@@ -1,15 +1,12 @@
-// Sắp xếp lớp theo tên, nhưng đảo thứ tự chữ cái cuối (tên nhóm lớp, VD "Anh
-// Văn 6A" / "Anh Văn 6O") để lớp "O" luôn đứng đầu, sau đó mới tới A, B, C,
-// D... (dùng cho module In Danh Sách — trang chọn lớp + thứ tự block trong
-// file Excel xuất ra).
+// Sắp xếp lớp theo môn, rồi khối (số, không phải chuỗi — tránh lỗi
+// "1, 10, 11, 12, 2, 3..." của string sort), rồi chữ cái cuối tên lớp (VD
+// "Anh Văn 6A" / "Anh Văn 6O") với "O" luôn đứng đầu, sau đó mới tới A, B,
+// C, D... (dùng cho module In Danh Sách — trang chọn lớp + thứ tự block
+// trong file Excel xuất ra).
 
-function extractSection(name: string): { prefix: string; letter: string | null } {
-  const trimmed = name.trim();
-  const last = trimmed.slice(-1);
-  if (/^[A-Z]$/.test(last)) {
-    return { prefix: trimmed.slice(0, -1), letter: last };
-  }
-  return { prefix: trimmed, letter: null };
+function sectionLetter(name: string): string | null {
+  const last = name.trim().slice(-1);
+  return /^[A-Z]$/.test(last) ? last : null;
 }
 
 function sectionRank(letter: string | null): number {
@@ -18,15 +15,12 @@ function sectionRank(letter: string | null): number {
   return letter.charCodeAt(0);
 }
 
-export function compareClassesBySection(a: { name: string }, b: { name: string }): number {
-  const sectionA = extractSection(a.name);
-  const sectionB = extractSection(b.name);
-  const prefixCompare = sectionA.prefix.localeCompare(sectionB.prefix, "vi");
-  if (prefixCompare !== 0) return prefixCompare;
-  return sectionRank(sectionA.letter) - sectionRank(sectionB.letter);
+export function compareClassesBySection(a: { name: string; grade: number }, b: { name: string; grade: number }): number {
+  if (a.grade !== b.grade) return a.grade - b.grade;
+  return sectionRank(sectionLetter(a.name)) - sectionRank(sectionLetter(b.name));
 }
 
-export function sortClassesBySection<T extends { name: string; subject: { name: string } }>(
+export function sortClassesBySection<T extends { name: string; grade: number; subject: { name: string } }>(
   classes: T[],
 ): T[] {
   return [...classes].sort(
