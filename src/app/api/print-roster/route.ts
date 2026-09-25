@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     },
     include: {
       subject: { select: { name: true } },
+      primaryTeacher: { select: { fullName: true } },
       enrollments: {
         where: { endBatchNumber: null },
         include: { student: { select: { code: true, fullName: true, phone: true } } },
@@ -74,12 +75,15 @@ export async function POST(request: Request) {
     const baseLabel = klass.name.startsWith(klass.subject.name)
       ? klass.name.slice(klass.subject.name.length).trim() || klass.name
       : klass.name;
+    // Nhãn lớp (ô I1 — "1A") kèm thêm tên giáo viên phụ trách, vì mẫu giấy
+    // gốc không có sẵn ô riêng cho GVCN.
+    const labelWithTeacher = `${baseLabel} - ${klass.primaryTeacher.fullName}`;
     const title = `DANH SÁCH ${klass.subject.name.toUpperCase()}`;
     const sorted = sortByVietnameseGivenName(klass.enrollments, (e) => e.student.fullName);
     chunk(sorted, MAX_STUDENTS_PER_BLOCK).forEach((pageStudents, pageIndex) => {
       pagesToFill.push({
         title,
-        label: pageIndex === 0 ? baseLabel : `${baseLabel} (tiếp theo)`,
+        label: pageIndex === 0 ? labelWithTeacher : `${labelWithTeacher} (tiếp theo)`,
         students: pageStudents,
       });
     });
